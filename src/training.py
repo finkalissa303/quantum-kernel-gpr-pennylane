@@ -27,7 +27,7 @@ def train_model(model, likelihood, kernel, X, y, lr, epochs):
     return losses, initial_params
 
 
-def evaluate_model(model, likelihood, X_train, X_test, y_test):
+def evaluate_model(model, likelihood, X_test, y_test):
     model.eval()
     likelihood.eval()
 

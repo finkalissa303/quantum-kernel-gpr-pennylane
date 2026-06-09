@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 """Trainable quantum fidelity kernel for Gaussian Process Regression.
 
-Implements the hardware-efficient, Chebyshev-inspired feature map and the
-fidelity kernel  k(x, x') = |<phi(x')|phi(x)>|^2  from Rapp & Roth,
-"Quantum Gaussian Process Regression for Bayesian Optimization"
-(arXiv:2304.12923), Eqs. (6)-(8).
+Implements the fidelity kernel  k(x, x') = |<phi(x')|phi(x)>|^2  (Rapp & Roth,
+"Quantum Gaussian Process Regression for Bayesian Optimization",
+arXiv:2304.12923, Eqs. 6-8) on top of a pluggable feature map. The feature map
+defines the circuit; this class only provides the kernel machinery.
 """
 
 import torch
@@ -15,18 +15,17 @@ import pennylane as qml
 class QuantumKernel(gpytorch.kernels.Kernel):
     """GPyTorch kernel whose entries are quantum state fidelities.
 
-    The feature map U(x; theta) prepares |phi(x; theta)> = U(x; theta)|0>, and
-    a kernel entry is the ground-state probability of U(x1) U^dagger(x2), i.e.
-    the fidelity |<phi(x2)|phi(x1)>|^2 (paper Eq. 8).
+    A kernel entry is the ground-state probability of U(x1) U^dagger(x2), i.e.
+    the fidelity |<phi(x2)|phi(x1)>|^2 (paper Eq. 8), where U is supplied by
+    `feature_map`.
 
     Parameters
     ----------
-    n_qubits, n_layers : int
-        Circuit width and number of repeated entangling layers.
-    phi : callable
-        Data-encoding function applied to each input before the RX rotation.
-        Typically torch.arccos (Chebyshev feature map); note its domain is
-        [-1, 1], so inputs must be scaled into that range.
+    feature_map : FeatureMap
+        Defines U(x; theta); owns `n_qubits` and `n_params`.
+    device : str
+        PennyLane device name (default "default.qubit", the CPU statevector
+        simulator). Pass another backend to run elsewhere.
     eig_cutoff : bool
         If True, project each symmetric Gram matrix onto the PSD cone by
         truncating negative eigenvalues at zero. This is the regularization
@@ -34,45 +33,25 @@ class QuantumKernel(gpytorch.kernels.Kernel):
         targets; with appreciable likelihood noise it is usually unnecessary.
     """
 
-    def __init__(self, n_qubits, n_layers, phi, eig_cutoff=False, **kwargs):
+    def __init__(self, feature_map, device="default.qubit", eig_cutoff=False, **kwargs):
         super().__init__(**kwargs)
 
-        self.n_qubits = n_qubits
-        self.n_layers = n_layers
-        self.phi = phi
+        self.feature_map = feature_map
         self.eig_cutoff = eig_cutoff
 
-        # n_qubits RY angles + n_qubits CRZ angles per layer. The RX
-        # data-encoding gates deliberately reuse the RY angles (paper Fig. 2),
-        # so they require no extra parameters.
-        self.n_params = self.n_qubits * (self.n_layers + 1)
+        self.n_params = feature_map.n_params
         self.params = torch.nn.Parameter(2 * torch.pi * torch.rand(self.n_params))
 
-        # "default.qubit" is PennyLane's CPU statevector simulator. Swap this
-        # for a hardware/plugin device to run on a real backend.
-        self.dev = qml.device("default.qubit", wires=self.n_qubits)
+        self.dev = qml.device(device, wires=feature_map.n_qubits)
         self.quantum_kernel_circuit = qml.QNode(
             self._circuit_definition, self.dev, interface="torch"
         )
 
-    def feature_map(self, x, params):
-        """Apply U(x; theta): initial RY rotations, then `n_layers` blocks of
-        data-encoding RX rotations followed by a ring of CRZ entanglers."""
-        pairs = [(i, (i + 1) % self.n_qubits) for i in range(self.n_qubits)]
-        for i in range(self.n_qubits):
-            qml.RY(params[i], wires=i)
-        for j in range(self.n_layers):
-            for i in range(self.n_qubits):
-                # The factor 2.0 widens the data-dependent rotation range.
-                qml.RX(params[i] * 2.0 * self.phi(x), wires=i)
-            for k, (q1, q2) in enumerate(pairs):
-                qml.CRZ(params[self.n_qubits + j * len(pairs) + k], wires=[q1, q2])
-
     def _circuit_definition(self, x1, x2, params):
         """U(x1) then U^dagger(x2); return computational-basis probabilities."""
-        self.feature_map(x1, params)
-        qml.adjoint(self.feature_map)(x2, params)
-        return qml.probs(wires=range(self.n_qubits))
+        self.feature_map.apply(x1, params)
+        qml.adjoint(self.feature_map.apply)(x2, params)
+        return qml.probs(wires=range(self.feature_map.n_qubits))
 
     def kernel(self, x1, x2, params):
         """Fidelity = probability of the all-zeros state (paper Eq. 8).

@@ -18,6 +18,7 @@ import gpytorch
 
 from src.data import make_sine_data, func
 from src.quantum_kernel import QuantumKernel
+from src.feature_maps import ChebyshevFeatureMap
 from src.model import QGP
 from src.training import train_model, evaluate_model
 from src.plotting import set_plot_style, plot_loss, plot_regression
@@ -41,7 +42,8 @@ X_test = torch.linspace(-1.0, 1.0, 50)
 y_test = func(X_test)
 
 # ---- model ---------------------------------------------------------------
-kernel = QuantumKernel(n_qubits=N_QUBITS, n_layers=N_LAYERS, phi=PHI)
+feature_map = ChebyshevFeatureMap(n_qubits=N_QUBITS, n_layers=N_LAYERS, phi=PHI)
+kernel = QuantumKernel(feature_map)
 likelihood = gpytorch.likelihoods.GaussianLikelihood()
 model = QGP(X_train, y_train, likelihood, kernel)
 
@@ -54,7 +56,7 @@ runtime = time.time() - t0
 
 # ---- evaluate ------------------------------------------------------------
 pred_mean, pred_var, mse = evaluate_model(
-    model, likelihood, X_train, X_test, y_test
+    model, likelihood, X_test, y_test
 )
 print(f"\nTest MSE: {mse:.4f}  (constant-mean baseline ~0.49; trained model ~0.1)")
 

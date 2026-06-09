@@ -42,7 +42,8 @@ Expect **MSE ≈ 0.1** (vs a constant-mean baseline of ≈ 0.49).
 run.py                         # recommended entry point (headless)
 src/
   data.py                      # sin(πx) toy dataset
-  quantum_kernel.py            # QuantumKernel: feature map + fidelity kernel
+  feature_maps.py              # FeatureMap interface + ChebyshevFeatureMap (the circuit)
+  quantum_kernel.py            # QuantumKernel: fidelity-kernel machinery (circuit-agnostic)
   model.py                     # QGP: ExactGP with constant mean
   training.py                  # train_model / evaluate_model
   plotting.py                  # loss, kernel-matrix, regression plots
@@ -72,3 +73,7 @@ quantum_kernel_gpr_pennylane_main.ipynb   # notebook driver (run.py is the clean
 - **`eig_cutoff`:** enable `QuantumKernel(..., eig_cutoff=True)` to project the
   Gram matrix onto the PSD cone (paper's regularization); mainly useful for
   (near-)noiseless targets.
+- **Pluggable circuits:** the feature map is a separate component. Subclass
+  `FeatureMap` (or reparameterize `ChebyshevFeatureMap`) and pass it to
+  `QuantumKernel(feature_map)`; the kernel reads `n_params` from the feature map,
+  so a new circuit needs no kernel changes.
