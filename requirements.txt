@@ -1,0 +1,9 @@
+# Verified working set (Python 3.12). The quantum stack is pinned because of
+# API churn; the rest float.
+torch
+gpytorch==1.15.2
+pennylane==0.45.0
+pandas
+matplotlib
+seaborn
+pyarrow

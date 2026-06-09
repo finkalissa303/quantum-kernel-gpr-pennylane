@@ -3,3 +3,9 @@ __pycache__/
 *.parquet
 drive/
 .ipynb_checkpoints/
+.venv/
+venv/
+# generated run artifacts
+loss.png
+regression.png
+baseline_CNOT_epoch50_learningrate001_3qbits_2layers.png
