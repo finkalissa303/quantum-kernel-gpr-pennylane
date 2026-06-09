@@ -1,93 +1,54 @@
 # Quantum-Kernel Gaussian Process Regression
 
-A small PennyLane + GPyTorch framework for **Gaussian Process Regression with a
-trainable quantum fidelity kernel**. The kernel entries are quantum state
-fidelities `k(x, x') = |⟨φ(x')|φ(x)⟩|²`, and the feature-map parameters are
-learned end-to-end by maximizing the GP marginal log-likelihood.
+Gaussian Process Regression with a **trainable quantum kernel**, built with
+PennyLane and GPyTorch. A parameterized quantum circuit encodes each data point
+into a quantum state, and the kernel value of two points is the fidelity
+(overlap) of their states: `k(x, x') = |⟨φ(x')|φ(x)⟩|²`. The circuit parameters
+are trained by maximizing the GP marginal log-likelihood. As a demo, it learns
+the toy function `f(x) = sin(πx)` from 30 noisy samples.
 
-It is **inspired by** Rapp & Roth, *"Quantum Gaussian Process Regression for
-Bayesian Optimization"* ([arXiv:2304.12923](https://arxiv.org/abs/2304.12923))
-— the fidelity kernel (Eqs. 6–8), the Chebyshev-style `arccos` feature map
-(Fig. 2), and MLL training (Eq. 9). It is **not** a reproduction of the paper's
-experiments: this repo regresses the simpler `f(x) = sin(πx)` on `[-1, 1]`
-rather than the paper's `f(x) = x·sin(x)`, and the paper's eigenvalue-cutoff
-Gram-matrix regularization is provided as an *option* (`eig_cutoff`) rather than
-on by default.
+Inspired by Rapp & Roth, [arXiv:2304.12923](https://arxiv.org/abs/2304.12923)
+(the paper is included in the repo).
 
-## Install
+## Requirements
 
-This project uses [uv](https://docs.astral.sh/uv/); Python is pinned to 3.12.
+- [uv](https://docs.astral.sh/uv/) — handles Python (3.12) and all
+  dependencies for you
+- No GPU needed: everything runs on CPU, on Linux, Windows, or macOS
 
-```bash
-uv sync
-```
-
-That creates `.venv/` with the exact locked dependencies, including the CPU
-build of PyTorch (`torch`, `gpytorch 1.15.2`, `pennylane 0.45`).
-
-## Run
+## Run it
 
 ```bash
-uv run python run.py
+uv sync               # one-time: create the environment
+uv run python run.py  # train + evaluate (~3 min on a laptop)
 ```
 
-Trains the GP, prints the test MSE, and writes `loss.png` + `regression.png`.
-Expect **MSE ≈ 0.1** (vs a constant-mean baseline of ≈ 0.49).
+You should see the training loss fall from ~1.3 to ~0.26 and end with:
 
-> ⚠️ **Learning rate matters.** The original notebooks shipped `lr = 0.001`,
-> which is ~100× too small — the loss barely moves and the model scores *worse*
-> than predicting the mean (MSE ≈ 0.59). `run.py` uses `lr = 0.1`.
+```
+Test MSE: 0.0997
+Saved loss.png and regression.png
+```
+
+`regression.png` shows the GP fit against the true function. Hyperparameters
+(qubits, layers, learning rate, epochs) are constants at the top of `run.py` —
+edit and re-run. Note: keep the learning rate around `0.1`; with the much
+smaller `0.001` the model does not learn.
+
+## Code overview
+
+| file | what it does |
+|---|---|
+| `run.py` | end-to-end demo: data → train → evaluate → plots |
+| `src/feature_maps.py` | the quantum circuit (swap in your own here) |
+| `src/quantum_kernel.py` | turns a feature map into a GPyTorch kernel |
+| `src/model.py`, `src/training.py` | GP model, train/eval loops |
+| `src/data.py`, `src/plotting.py`, `src/logger.py` | toy data, plots, parquet log |
 
 ## Development
 
-Lint, format, and type-check with the Astral toolchain (installed by `uv sync`):
-
 ```bash
-uv run ruff format .     # format
-uv run ruff check .      # lint (add --fix to autofix)
-uv run ty check          # type-check
+uv run ruff format .   # format
+uv run ruff check .    # lint
+uv run ty check        # type-check
 ```
-
-## Project layout
-
-```
-run.py                         # recommended entry point (headless)
-pyproject.toml                 # project metadata, deps, ruff + ty config
-uv.lock                        # pinned dependency lockfile
-src/
-  data.py                      # sin(πx) toy dataset
-  feature_maps.py              # FeatureMap interface + ChebyshevFeatureMap (the circuit)
-  quantum_kernel.py            # QuantumKernel: fidelity-kernel machinery (circuit-agnostic)
-  model.py                     # QGP: ExactGP with constant mean
-  training.py                  # train_model / evaluate_model
-  plotting.py                  # loss, kernel-matrix, regression plots
-  logger.py                    # append experiment rows to parquet
-  config.py                    # experiment-log paths (override via $PROJECT_DIR)
-quantum_kernel_gpr_pennylane.ipynb        # from-scratch tutorial notebook
-quantum_kernel_gpr_pennylane_main.ipynb   # notebook driver (run.py is the cleaner path)
-2304.12923v1-2.pdf             # reference paper
-```
-
-## Key hyperparameters (`run.py`)
-
-| name        | value          | notes                                           |
-|-------------|----------------|-------------------------------------------------|
-| `n_qubits`  | 2              | more qubits → more expressive (and slower)      |
-| `n_layers`  | 3              | repeated RX-encoding + CRZ-entangler blocks     |
-| `lr`        | 0.1            | **do not lower to 0.001** (won't learn)         |
-| `epochs`    | 40             | ~converged on this toy task                     |
-| `phi`       | `torch.arccos` | domain `[-1, 1]`; inputs must be scaled         |
-
-## Notes & limitations
-
-- **Cost:** the kernel is evaluated pair-by-pair (`O(N²)` circuit calls), so
-  training is slow even on this toy problem.
-- **Expressivity:** 2 qubits is minimal; quantum fidelity kernels can suffer
-  from *exponential concentration* as qubit count grows (paper, ref. [44]).
-- **`eig_cutoff`:** enable `QuantumKernel(..., eig_cutoff=True)` to project the
-  Gram matrix onto the PSD cone (paper's regularization); mainly useful for
-  (near-)noiseless targets.
-- **Pluggable circuits:** the feature map is a separate component. Subclass
-  `FeatureMap` (or reparameterize `ChebyshevFeatureMap`) and pass it to
-  `QuantumKernel(feature_map)`; the kernel reads `n_params` from the feature map,
-  so a new circuit needs no kernel changes.
