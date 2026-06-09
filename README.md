@@ -36,7 +36,7 @@ reproduce the run above; keep `--lr` near `0.1`, the original `0.001` does
 not learn). Best configuration so far ([RESULTS.md](RESULTS.md)):
 
 ```bash
-uv run python run.py --qubits 3 --layers 3 --epochs 100  # Test MSE 0.0092
+uv run python run.py --qubits 3 --layers 3 --epochs 100 --seed 23  # Test MSE 0.0023
 ```
 
 ## Code overview
