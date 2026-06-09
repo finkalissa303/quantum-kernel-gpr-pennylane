@@ -35,7 +35,7 @@ torch = { index = "pytorch-cpu" }
 [tool.ruff]
 line-length = 88
 target-version = "py312"
-extend-exclude = ["*.ipynb", ".venv"]
+extend-exclude = [".venv"]
 
 [tool.ruff.lint]
 select = ["E", "W", "F", "I", "B", "UP"]
