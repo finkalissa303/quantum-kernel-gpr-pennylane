@@ -31,9 +31,13 @@ Saved loss.png and regression.png
 ```
 
 `regression.png` shows the GP fit against the true function. Hyperparameters
-(qubits, layers, learning rate, epochs) are constants at the top of `run.py` —
-edit and re-run. Note: keep the learning rate around `0.1`; with the much
-smaller `0.001` the model does not learn.
+are CLI flags — `--qubits --layers --epochs --lr --scale --seed` (defaults
+reproduce the run above; keep `--lr` near `0.1`, the original `0.001` does
+not learn). Best configuration so far ([RESULTS.md](RESULTS.md)):
+
+```bash
+uv run python run.py --qubits 3 --layers 3 --epochs 100  # Test MSE 0.0092
+```
 
 ## Code overview
 
