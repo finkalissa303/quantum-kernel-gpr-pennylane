@@ -1,8 +1,7 @@
-# -*- coding: utf-8 -*-
 """Training and evaluation loops for the quantum-kernel GP."""
 
-import torch
 import gpytorch
+import torch
 
 
 def train_model(model, likelihood, kernel, X, y, lr, epochs):
@@ -18,7 +17,11 @@ def train_model(model, likelihood, kernel, X, y, lr, epochs):
     for epoch in range(epochs):
         optimizer.zero_grad()
         output = model(X)
-        loss = -mll(output, y)
+        nll = mll(output, y)
+        # ExactMarginalLogLikelihood returns a scalar Tensor (the gpytorch
+        # annotation is a wider union, so narrow it for the type checker).
+        assert isinstance(nll, torch.Tensor)
+        loss = -nll
         loss.backward()
         optimizer.step()
         losses.append(loss.item())

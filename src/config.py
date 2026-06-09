@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Paths for experiment logging.
 
 Defaults to the repository root; override with the PROJECT_DIR env var."""

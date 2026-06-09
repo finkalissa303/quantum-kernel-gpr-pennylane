@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Pluggable quantum feature maps for the fidelity kernel.
 
 A feature map defines the unitary U(x; theta) that prepares the data-encoding
@@ -7,8 +6,8 @@ with the fidelity-kernel machinery, so trying a different circuit means writing
 a new FeatureMap -- the kernel itself never changes.
 """
 
-import torch
 import pennylane as qml
+import torch
 
 
 class FeatureMap:

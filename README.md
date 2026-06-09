@@ -16,17 +16,19 @@ on by default.
 
 ## Install
 
+This project uses [uv](https://docs.astral.sh/uv/); Python is pinned to 3.12.
+
 ```bash
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
+uv sync
 ```
 
-Tested with Python 3.12, `torch 2.12`, `gpytorch 1.15.2`, `pennylane 0.45`.
+That creates `.venv/` with the exact locked dependencies, including the CPU
+build of PyTorch (`torch`, `gpytorch 1.15.2`, `pennylane 0.45`).
 
 ## Run
 
 ```bash
-python run.py
+uv run python run.py
 ```
 
 Trains the GP, prints the test MSE, and writes `loss.png` + `regression.png`.
@@ -36,10 +38,22 @@ Expect **MSE ≈ 0.1** (vs a constant-mean baseline of ≈ 0.49).
 > which is ~100× too small — the loss barely moves and the model scores *worse*
 > than predicting the mean (MSE ≈ 0.59). `run.py` uses `lr = 0.1`.
 
+## Development
+
+Lint, format, and type-check with the Astral toolchain (installed by `uv sync`):
+
+```bash
+uv run ruff format .     # format
+uv run ruff check .      # lint (add --fix to autofix)
+uv run ty check          # type-check
+```
+
 ## Project layout
 
 ```
 run.py                         # recommended entry point (headless)
+pyproject.toml                 # project metadata, deps, ruff + ty config
+uv.lock                        # pinned dependency lockfile
 src/
   data.py                      # sin(πx) toy dataset
   feature_maps.py              # FeatureMap interface + ChebyshevFeatureMap (the circuit)

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Trainable quantum fidelity kernel for Gaussian Process Regression.
 
 Implements the fidelity kernel  k(x, x') = |<phi(x')|phi(x)>|^2  (Rapp & Roth,
@@ -7,9 +6,9 @@ arXiv:2304.12923, Eqs. 6-8) on top of a pluggable feature map. The feature map
 defines the circuit; this class only provides the kernel machinery.
 """
 
-import torch
 import gpytorch
 import pennylane as qml
+import torch
 
 
 class QuantumKernel(gpytorch.kernels.Kernel):
@@ -68,7 +67,7 @@ class QuantumKernel(gpytorch.kernels.Kernel):
         evals = torch.clamp(evals, min=0.0)
         return (evecs * evals) @ evecs.transpose(-1, -2)
 
-    def forward(self, x1, x2, diag=False, **params):
+    def forward(self, x1, x2, diag=False, last_dim_is_batch=False, **params):
         """Assemble the kernel matrix K[i, j] = kernel(x1[i], x2[j]).
 
         The symmetric shortcut (compute the upper triangle, mirror it, and use

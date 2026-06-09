@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Exact GP model with a constant mean and a (quantum) covariance kernel."""
 
 import gpytorch

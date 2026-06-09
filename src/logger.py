@@ -1,18 +1,17 @@
-# -*- coding: utf-8 -*-
 """Append experiment results to a parquet log."""
 
-from datetime import datetime
 import os
-import torch
-import pandas as pd
+from datetime import datetime
 
+import pandas as pd
+import torch
 
 # ======================================================
 # PARQUET APPENDER
 # ======================================================
 
-def append_parquet(row, parquet_file):
 
+def append_parquet(row, parquet_file):
     new_df = pd.DataFrame([row])
 
     if os.path.exists(parquet_file):
@@ -27,6 +26,7 @@ def append_parquet(row, parquet_file):
 # ======================================================
 # BUILD ROW
 # ======================================================
+
 
 def build_experiment_row(
     n_qubits,
@@ -43,39 +43,27 @@ def build_experiment_row(
     likelihood,
     losses,
     initial_params,
-    seed=22
+    seed=22,
 ):
-
     return {
         "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-
         "n_qubits": n_qubits,
         "n_layers": n_layers,
         "n_params": kernel.n_params,
-
         "learning_rate": lr,
         "epochs": epochs,
-
         "N_train": N_train,
         "N_test": N_test,
-
         "noise_eps": noise_eps,
-
         "phi": str(phi.__name__) if hasattr(phi, "__name__") else str(phi),
-
         "mse": float(mse),
-
         "runtime_sec": runtime_sec,
-
         "likelihood_noise": float(likelihood.noise.item()),
-
         "final_loss": float(losses[-1]),
-
         "parameter_movement": float(
             torch.norm(kernel.params.detach() - initial_params).item()
         ),
-
-        "seed": seed
+        "seed": seed,
     }
 
 
@@ -83,8 +71,8 @@ def build_experiment_row(
 # SAVE RESULT
 # ======================================================
 
-def save_experiment(row, save_mode, scratch_file, final_file):
 
+def save_experiment(row, save_mode, scratch_file, final_file):
     if save_mode == "scratch":
         append_parquet(row, scratch_file)
         print("Saved to scratch database")

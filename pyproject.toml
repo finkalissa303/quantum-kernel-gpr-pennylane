@@ -1,0 +1,51 @@
+[project]
+name = "quantum-kernel-gpr-pennylane"
+version = "0.1.0"
+description = "Gaussian Process Regression with a trainable quantum fidelity kernel (PennyLane + GPyTorch)."
+readme = "README.md"
+requires-python = ">=3.12"
+license = "MIT"
+authors = [{ name = "Benjamin Fink" }]
+dependencies = [
+    "torch",
+    "gpytorch==1.15.2",
+    "pennylane==0.45.0",
+    "pandas",
+    "matplotlib",
+    "seaborn",
+    "pyarrow",
+]
+
+[dependency-groups]
+dev = ["ruff>=0.12", "ty"]
+
+[tool.uv]
+# This is an application (run.py + src/), not an installable library.
+package = false
+
+# Pull torch from the CPU wheel index instead of the default CUDA builds.
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch-cpu" }
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+extend-exclude = ["*.ipynb", ".venv"]
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "B", "UP"]
+
+[tool.ruff.lint.per-file-ignores]
+# matplotlib.use("Agg") must run before pyplot is imported.
+"run.py" = ["E402"]
+
+[tool.ty.environment]
+python-version = "3.12"
+
+[tool.ty.src]
+include = ["src", "run.py"]

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Toy 1-D regression dataset: f(x) = sin(pi * x) on [-1, 1] with noise."""
 
 import torch

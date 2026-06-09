@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """End-to-end demo: train the quantum-kernel GP on sin(pi x) and plot results.
 
 Run from the repository root:
@@ -9,27 +8,28 @@ Writes loss.png, regression.png, and an experiments_scratch.parquet log.
 """
 
 import time
+
 import matplotlib
 
 matplotlib.use("Agg")  # headless backend; drop this line for interactive plots
 
-import torch
 import gpytorch
+import torch
 
-from src.data import make_sine_data, func
-from src.quantum_kernel import QuantumKernel
+from src.config import FINAL_FILE, SAVE_MODE, SCRATCH_FILE
+from src.data import func, make_sine_data
 from src.feature_maps import ChebyshevFeatureMap
-from src.model import QGP
-from src.training import train_model, evaluate_model
-from src.plotting import set_plot_style, plot_loss, plot_regression
 from src.logger import build_experiment_row, save_experiment
-from src.config import SAVE_MODE, SCRATCH_FILE, FINAL_FILE
+from src.model import QGP
+from src.plotting import plot_loss, plot_regression, set_plot_style
+from src.quantum_kernel import QuantumKernel
+from src.training import evaluate_model, train_model
 
 # ---- configuration -------------------------------------------------------
 SEED = 22
 N_QUBITS = 2
 N_LAYERS = 3
-LR = 0.1          # the original 0.001 is ~100x too small and fails to learn
+LR = 0.1  # the original 0.001 is ~100x too small and fails to learn
 EPOCHS = 40
 NOISE = 0.1
 PHI = torch.arccos
@@ -55,25 +55,39 @@ losses, initial_params = train_model(
 runtime = time.time() - t0
 
 # ---- evaluate ------------------------------------------------------------
-pred_mean, pred_var, mse = evaluate_model(
-    model, likelihood, X_test, y_test
-)
+pred_mean, pred_var, mse = evaluate_model(model, likelihood, X_test, y_test)
 print(f"\nTest MSE: {mse:.4f}  (constant-mean baseline ~0.49; trained model ~0.1)")
 
 # ---- plot ----------------------------------------------------------------
 set_plot_style()
 plot_loss(losses, save_path="loss.png")
 plot_regression(
-    X_train, y_train, X_test, y_test, pred_mean, pred_var,
+    X_train,
+    y_train,
+    X_test,
+    y_test,
+    pred_mean,
+    pred_var,
     save_path="regression.png",
 )
 print("Saved loss.png and regression.png")
 
 # ---- log -----------------------------------------------------------------
 row = build_experiment_row(
-    n_qubits=N_QUBITS, n_layers=N_LAYERS, kernel=kernel, lr=LR, epochs=EPOCHS,
-    N_train=X_train.shape[0], N_test=X_test.shape[0], noise_eps=NOISE, phi=PHI,
-    mse=mse, runtime_sec=runtime, likelihood=likelihood, losses=losses,
-    initial_params=initial_params, seed=SEED,
+    n_qubits=N_QUBITS,
+    n_layers=N_LAYERS,
+    kernel=kernel,
+    lr=LR,
+    epochs=EPOCHS,
+    N_train=X_train.shape[0],
+    N_test=X_test.shape[0],
+    noise_eps=NOISE,
+    phi=PHI,
+    mse=mse,
+    runtime_sec=runtime,
+    likelihood=likelihood,
+    losses=losses,
+    initial_params=initial_params,
+    seed=SEED,
 )
 save_experiment(row, SAVE_MODE, SCRATCH_FILE, FINAL_FILE)
