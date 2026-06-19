@@ -8,4 +8,6 @@ venv/
 # generated run artifacts
 loss.png
 regression.png
+study_shots.png
+study_samples.png
 baseline_CNOT_epoch50_learningrate001_3qbits_2layers.png

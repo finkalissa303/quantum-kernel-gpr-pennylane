@@ -39,14 +39,36 @@ not learn). Best configuration so far ([RESULTS.md](RESULTS.md)):
 uv run python run.py --qubits 3 --layers 3 --epochs 100 --seed 23  # Test MSE 0.0023
 ```
 
+Every run also reports R², NLPD, MSLL, and 95%-interval coverage alongside MSE —
+a GP is only as good as its calibrated uncertainty, not just its mean.
+
+## Sweeps and studies
+
+The parameter-init seed alone swings test MSE ~37× ([RESULTS.md](RESULTS.md)), so
+single-run comparisons measure seed luck. Three helpers compare *distributions*
+and reproduce the paper's sample-based experiment:
+
+```bash
+uv run python sweep.py --epochs 40   # configs × seeds → median/IQR + best-of-N
+uv run python study_shots.py         # freeze params, sweep measurement shots (Fig 3b)
+uv run python study_samples.py       # learning curve over training-set size
+```
+
+Each writes a `*.parquet` log (and the studies a PNG). Edit the config/seed/shot
+grids at the top of each script; pass `--help` for the per-run flags.
+
 ## Code overview
 
 | file | what it does |
 |---|---|
 | `run.py` | end-to-end demo: data → train → evaluate → plots |
+| `sweep.py` | multi-seed sweep over circuit configs → median/IQR table |
+| `study_shots.py` | finite-shot (sample-based) study — the paper's Fig. 3(b) |
+| `study_samples.py` | training-set-size learning curve |
 | `src/feature_maps.py` | the quantum circuit (swap in your own here) |
 | `src/quantum_kernel.py` | turns a feature map into a GPyTorch kernel |
-| `src/model.py`, `src/training.py` | GP model, train/eval loops |
+| `src/experiment.py` | shared build → train → evaluate (`run_config`) |
+| `src/model.py`, `src/training.py` | GP model, train/eval loops + metrics |
 | `src/data.py`, `src/plotting.py`, `src/logger.py` | toy data, plots, parquet log |
 
 ## Development

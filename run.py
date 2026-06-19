@@ -6,26 +6,21 @@ Run from the repository root:
 
 Hyperparameters are CLI flags (see --help); the defaults reproduce the README
 run. Writes loss.png, regression.png, and an experiments_scratch.parquet log.
+For multi-seed sweeps and the sample-based studies see sweep.py / study_*.py.
 """
 
 import argparse
-import time
 
 import matplotlib
 
 matplotlib.use("Agg")  # headless backend; drop this line for interactive plots
 
-import gpytorch
 import torch
 
 from src.config import FINAL_FILE, SAVE_MODE, SCRATCH_FILE
-from src.data import func, make_sine_data
-from src.feature_maps import ChebyshevFeatureMap
-from src.logger import build_experiment_row, save_experiment
-from src.model import QGP
+from src.experiment import result_row, run_config
+from src.logger import save_experiment
 from src.plotting import plot_loss, plot_regression, set_plot_style
-from src.quantum_kernel import QuantumKernel
-from src.training import evaluate_model, train_model
 
 # ---- configuration -------------------------------------------------------
 parser = argparse.ArgumentParser(description="Train the quantum-kernel GP demo.")
@@ -53,71 +48,40 @@ parser.add_argument(
 )
 args = parser.parse_args()
 
-DATA_SEED = 22
 NOISE = 0.1
 PHI = torch.arccos
 
-# ---- data ----------------------------------------------------------------
-torch.manual_seed(DATA_SEED)
-X_train, y_train = make_sine_data(n_points=30, noise=NOISE)
-X_test = torch.linspace(-1.0, 1.0, 50)
-y_test = func(X_test)
-
-# Re-seed only for non-default init seeds: the default run keeps consuming the
-# data-draw RNG stream and so reproduces the README numbers bit for bit.
-if args.seed != DATA_SEED:
-    torch.manual_seed(args.seed)
-
-# ---- model ---------------------------------------------------------------
-feature_map = ChebyshevFeatureMap(
-    n_qubits=args.qubits, n_layers=args.layers, phi=PHI, scale=args.scale
+# ---- build, train, evaluate ----------------------------------------------
+result = run_config(
+    n_qubits=args.qubits,
+    n_layers=args.layers,
+    scale=args.scale,
+    lr=args.lr,
+    epochs=args.epochs,
+    seed=args.seed,
+    noise=NOISE,
+    phi=PHI,
 )
-kernel = QuantumKernel(feature_map)
-likelihood = gpytorch.likelihoods.GaussianLikelihood()
-model = QGP(X_train, y_train, likelihood, kernel)
-
-# ---- train ---------------------------------------------------------------
-t0 = time.time()
-losses, initial_params = train_model(
-    model, likelihood, kernel, X_train, y_train, lr=args.lr, epochs=args.epochs
+m = result.metrics
+print(
+    f"\nTest MSE {m['mse']:.4f} | R2 {m['r2']:.4f} | NLPD {m['nlpd']:.3f} | "
+    f"MSLL {m['msll']:.3f} | 95% coverage err {m['cov95_err']:.3f}"
 )
-runtime = time.time() - t0
-
-# ---- evaluate ------------------------------------------------------------
-pred_mean, pred_var, mse = evaluate_model(model, likelihood, X_test, y_test)
-print(f"\nTest MSE: {mse:.4f}  (constant-mean baseline ~0.49; trained model ~0.1)")
+print("(MSE yardsticks: constant-mean baseline ~0.49, classical RBF ~0.003)")
 
 # ---- plot ----------------------------------------------------------------
 set_plot_style()
-plot_loss(losses, save_path="loss.png")
+plot_loss(result.losses, save_path="loss.png")
 plot_regression(
-    X_train,
-    y_train,
-    X_test,
-    y_test,
-    pred_mean,
-    pred_var,
+    result.X_train,
+    result.y_train,
+    result.X_test,
+    result.y_test,
+    result.pred_mean,
+    result.pred_var,
     save_path="regression.png",
 )
 print("Saved loss.png and regression.png")
 
 # ---- log -----------------------------------------------------------------
-row = build_experiment_row(
-    n_qubits=args.qubits,
-    n_layers=args.layers,
-    kernel=kernel,
-    lr=args.lr,
-    epochs=args.epochs,
-    N_train=X_train.shape[0],
-    N_test=X_test.shape[0],
-    noise_eps=NOISE,
-    phi=PHI,
-    scale=args.scale,
-    mse=mse,
-    runtime_sec=runtime,
-    likelihood=likelihood,
-    losses=losses,
-    initial_params=initial_params,
-    seed=args.seed,
-)
-save_experiment(row, SAVE_MODE, SCRATCH_FILE, FINAL_FILE)
+save_experiment(result_row(result), SAVE_MODE, SCRATCH_FILE, FINAL_FILE)

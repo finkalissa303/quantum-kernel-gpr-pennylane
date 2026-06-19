@@ -43,6 +43,8 @@ select = ["E", "W", "F", "I", "B", "UP"]
 [tool.ruff.lint.per-file-ignores]
 # matplotlib.use("Agg") must run before pyplot is imported.
 "run.py" = ["E402"]
+"study_shots.py" = ["E402"]
+"study_samples.py" = ["E402"]
 
 [tool.ty.environment]
 python-version = "3.12"

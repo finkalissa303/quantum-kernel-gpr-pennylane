@@ -1,6 +1,7 @@
 """Plotting helpers: training loss, kernel matrix, and regression results."""
 
 import matplotlib.pyplot as plt
+import numpy as np
 import seaborn as sns
 import torch
 from cycler import cycler
@@ -133,7 +134,64 @@ def plot_regression(
 
 
 # ======================================================
-# 4. PREDICTION UNCERTAINTY ONLY (OPTIONAL DEBUG TOOL)
+# 4. STUDY CURVE (metric vs a swept axis, band over seeds)
+# ======================================================
+
+
+def plot_study_curve(
+    x,
+    values,
+    xlabel,
+    ylabel,
+    save_path=None,
+    logx=False,
+    reference=None,
+    reference_label="reference",
+):
+    """Plot a metric against a swept axis with a mean +/- std band over repeats.
+
+    Parameters
+    ----------
+    x : sequence
+        The swept values (e.g. shot counts, or training-set sizes).
+    values : array-like, shape (len(x),) or (len(x), n_repeats)
+        The metric at each x; the second axis (if present) holds repeats over
+        seeds, drawn as a +/-1 std band around the mean.
+    logx : bool
+        Log-scale the x axis -- natural for a shot-count sweep.
+    reference : float, optional
+        A horizontal baseline (e.g. the analytic or classical-RBF value).
+    """
+    x = np.asarray(x, dtype=float)
+    values = np.asarray(values, dtype=float)
+    if values.ndim == 1:
+        values = values[:, None]
+    mean = values.mean(axis=1)
+    std = values.std(axis=1)
+
+    plt.figure()
+    plt.plot(x, mean, marker="o", label="mean over seeds")
+    plt.fill_between(x, mean - std, mean + std, alpha=0.3, label=r"$\pm$1 std")
+    if reference is not None:
+        plt.axhline(
+            reference, color="k", linestyle="--", linewidth=1.5, label=reference_label
+        )
+    if logx:
+        plt.xscale("log")
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
+    plt.legend(loc="best")
+    plt.grid(alpha=0.3)
+    plt.tight_layout()
+
+    if save_path:
+        plt.savefig(save_path)
+
+    plt.show()
+
+
+# ======================================================
+# 5. PREDICTION UNCERTAINTY ONLY (OPTIONAL DEBUG TOOL)
 # ======================================================
 
 
@@ -151,7 +209,7 @@ def plot_uncertainty(X, mean, var):
 
 
 # ======================================================
-# 5. PARAMETER / DIAGNOSTIC PLOTS (OPTIONAL)
+# 6. PARAMETER / DIAGNOSTIC PLOTS (OPTIONAL)
 # ======================================================
 
 

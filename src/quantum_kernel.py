@@ -29,21 +29,55 @@ class QuantumKernel(gpytorch.kernels.Kernel):
         If True, project each symmetric Gram matrix onto the PSD cone by
         truncating negative eigenvalues at zero. This is the regularization
         described in the paper (Sec. 1.1) and matters most for (near-)noiseless
-        targets; with appreciable likelihood noise it is usually unnecessary.
+        targets and for finite-shot kernels; with appreciable likelihood noise
+        and exact (analytic) evaluation it is usually unnecessary.
+    shots : int or None
+        Measurements per kernel entry. None (default) is exact statevector
+        evaluation; an int makes the kernel a sampled estimate, as on real
+        hardware. See `set_shots` for the train-analytic / evaluate-with-shots
+        workflow.
     """
 
-    def __init__(self, feature_map, device="default.qubit", eig_cutoff=False, **kwargs):
+    def __init__(
+        self,
+        feature_map,
+        device="default.qubit",
+        eig_cutoff=False,
+        shots=None,
+        **kwargs,
+    ):
         super().__init__(**kwargs)
 
         self.feature_map = feature_map
         self.eig_cutoff = eig_cutoff
+        self._device_name = device
 
         self.n_params = feature_map.n_params
         self.params = torch.nn.Parameter(2 * torch.pi * torch.rand(self.n_params))
 
-        self.dev = qml.device(device, wires=feature_map.n_qubits)
-        self.quantum_kernel_circuit = qml.QNode(
-            self._circuit_definition, self.dev, interface="torch"
+        self.set_shots(shots)
+
+    def set_shots(self, shots, seed=None):
+        """Switch between analytic (shots=None) and sample-based estimation.
+
+        Rebuilds the device and QNode -- leaving the trained `params` untouched
+        -- so finite-shot evaluation mimics a real device that estimates each
+        fidelity from `shots` measurements. Pass `seed` to make the (otherwise
+        random) shot draws reproducible: PennyLane seeds its sampler at device
+        construction, so reseeding needs this rebuild, not a global torch/numpy
+        seed. shots=None restores exact statevector evaluation.
+
+        Intended use is the paper's Fig. 3(b) protocol: train analytically, then
+        freeze the optimal parameters and only make the *kernel estimation*
+        noisy. Finite-shot sampling is non-differentiable, so do not train
+        through it.
+        """
+        self.dev = qml.device(
+            self._device_name, wires=self.feature_map.n_qubits, seed=seed
+        )
+        qnode = qml.QNode(self._circuit_definition, self.dev, interface="torch")
+        self.quantum_kernel_circuit = (
+            qnode if shots is None else qml.set_shots(qnode, shots=shots)
         )
 
     def _circuit_definition(self, x1, x2, params):
