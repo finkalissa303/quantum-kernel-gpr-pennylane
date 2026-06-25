@@ -28,9 +28,9 @@ def main():
     eps = 0.1
     phi = torch.arccos
 
-    QUBITS_LIST = [2,3,4,5]
-    LAYERS_LIST = [2, 3, 4]
-    SCALES_LIST = [0.5,1.0,1.5,2.0,2.5,3.0]
+    QUBITS_LIST = [2,3]
+    LAYERS_LIST = [2, 3]
+    SCALES_LIST = [0.5,1.0,2.0,3.0]
 
     print("Torch:", torch.__version__)
     print("GPyTorch imported OK")
